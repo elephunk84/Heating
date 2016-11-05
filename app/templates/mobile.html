@@ -4,7 +4,6 @@
 <link rel="stylesheet" href="{{ url_for('static',filename='styles/style.css') }}">
 <link href='http://fonts.googleapis.com/css?family=Oswald' rel='stylesheet' type='text/css'>
 <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
-<script src="{{ url_for('static',filename='Chart.min.js') }}"></script>
 <title>Iains Central Heating Control</title>
 </head>
 <style>
@@ -13,17 +12,22 @@
         font-family: 'Open Sans', sans-serif;
         margin:auto;
         text-align:center;
+        font-size:250%;
+}
+h3 {
+        font-size:200%;
 }
 
 .push_button {
 	position: relative;
-	width:87%;
-	height:40px;
+	width:96%;
+	height:120px;
 	text-align:center;
 	color:#FFF;
 	text-decoration:none;
-	line-height:43px;
+	line-height:120px;
 	font-family:'Oswald', Helvetica;
+        font-size:200%;
 	display: block;
 	margin: 15px 0 15px 15px;
 }
@@ -114,86 +118,21 @@
 }
 </style>
 <body>
-
 <div class="container">
-    <div class="sidebar">
-        <div class="box effect6">
-            <div class="title"><h1>Heating Control</h1></div>
-            <h3>{{ data[0] }} {{ data[1] }} {{ data[2] }} {{ data[3] }} </br>{{ dbData[0] }}</h3>
-            <h3>{{ dbData[1] }}&deg;C </br> Temp is set to {{ dbData[7] }}&deg;C </h3>
-            <h3>Iain is home = {{ dbData[2] }} </br> Elora is home = {{ dbData[3] }}</h3>
-            <h3>Advance = {{ dbData[5] }} </br> Manual = {{ dbData[4] }}</h3>
-            <h3>Schedule = {{ scheduleRUN }}</h3>
-            <div class="title"><h2>Heating = {{ dbData[6] }}</h2></div>
-            <div class="buttonsCont">
-                    <a href="advance" class="push_button blue">1 Hour Advance</a>
-                    <a href="manual" class="push_button red">Manual Override</a>
-                    <a href="winter" class="push_button blue">Winter Mode</a>
-                    <a href="#" class="push_button blue">Edit Schedule</a>
-            </div>
-        </div>
-    </div>
-    <div class="content">
-        <div class="box effect6">
-            <div class="weather" align="left">
-                <iframe id="forecast_embed" type="text/html" frameborder="0" height="245" width="100%" src="http://forecast.io/embed/#lat=53.3353&lon=-2.7307&units=uk&name=Runcorn England"> </iframe>
-            </div>
-        <!-- bar chart canvas element -->
-        <canvas id="chart" width="1000" height="400"></canvas>
-        <script>
-        // bar chart data
-        var barData = {
-        labels : [{% for item in graphDataTIME %}
-                "{{item}}",
-                {% endfor %}],
-        datasets : [
-                {
-                fillColor: "rgba(151,187,205,0.2)",
-                strokeColor: "rgba(151,187,205,1)",
-                pointColor: "rgba(151,187,205,1)",
-                pointStrokeColor: "#fff",
-                pointHighlightFill: "#fff",
-                pointHighlightStroke: "rgba(151,187,205,1)",
-                bezierCurve : true,
-        data : [{% for item in graphDataTEMP %}
-                      {{item}},
-                    {% endfor %}]
-                }]
-   }
- 
-    Chart.defaults.global.animationSteps = 1;
-    Chart.defaults.global.tooltipYPadding = 16;
-    Chart.defaults.global.tooltipCornerRadius = 0;
-    Chart.defaults.global.tooltipTitleFontStyle = "normal";
-    Chart.defaults.global.tooltipFillColor = "rgba(0,0,0,0.8)";
-    Chart.defaults.global.animationEasing = "easeOutBounce";
-    Chart.defaults.global.responsive = false;
-    Chart.defaults.global.scaleLineColor = "black";
-    Chart.defaults.global.scaleFontSize = 16;
- 
-   // get bar chart canvas
-   var mychart = document.getElementById("chart").getContext("2d");
- 
-   steps = 5
-   max = 30
-   // draw bar chart
-   var LineChartDemo = new Chart(mychart).Line(barData, {
-        scaleOverride: true,
-        scaleSteps: steps,
-        scaleStepWidth: Math.ceil(max / steps),
-        scaleStartValue: 0,
-        scaleShowVerticalLines: true,
-        scaleShowGridLines : true,
-        barShowStroke : true,
-        scaleShowLabels: true,
-        bezierCurve: false,
- 
-   });
- 
- 
-</script>    
-        </div>
-    </div>
+<div class="box effect6">
+    <div class="title"><h1>Heating Control</h1></div>
+    <h3>{{ data[0] }} {{ data[1] }} {{ data[2] }} {{ data[3] }} {{ dbData[0] }}</h3>
+    <h3>{{ dbData[1] }}&deg;C </br> Temp is set to {{ dbData[7] }}&deg;C </h3>
+    <h3>Iain is home = {{ dbData[2] }}</h3>
+    <h3>Elora is home = {{ dbData[3] }}</h3>
+    <h3>Advance = {{ dbData[5] }}</h3>
+    <h3>Manual = {{ dbData[4] }}</h3>
+    <h3>Schedule = {{ scheduleRUN }}</h3>
+    <div class="title"><h2>Heating = {{ dbData[6] }}</h2></div>
+    <div class="buttonsCont">
+            <a href="mobadvance" class="push_button blue">1 Hour Advance</a>
+            <a href="mobmanual" class="push_button red">Manual Override</a>
+            <a href="mobwinter" class="push_button blue">Winter Mode</a>
 </div>
 </body>
 <script>

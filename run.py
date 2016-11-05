@@ -23,6 +23,11 @@ offCommand="ssh osmc@192.168.0.130 'sudo gpio write 8 1'"
 scheduleDB=workingdir+'/app/database/schedule.db'
 manualOverride='OFF'
 advancedOverride='OFF'
+occupiedIain=''
+occupiedElora=''
+STATUS=''
+setTemp=''
+schedule=''
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(22, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -57,6 +62,8 @@ def getTemp():
     tempstr= lines[1][-6:-1]
     tempvalue=float(tempstr)/1000
     temp=tempvalue
+    temp=float(temp)
+    temp=math.ceil(temp * 100) / 100.0
     
 def checkforDB():
     global todaysDB, todaysStateDB
@@ -77,19 +84,20 @@ def checkforDB():
             os.mkdir(workingdir+"/app/database/templogs/"+dateTimeLIST[3]+"/"+dateTimeLIST[2])
         subprocess.call(['touch', todaysDB])
         subprocess.call(['touch', todaysStateDB])
-        subprocess.call(['sudo', 'chmod', '-R', '+w', workingdir+"/app/database/templogs/"])
-    with sqlite3.connect(todaysDB) as tempconn:
-        curs=tempconn.cursor()
-        tempTable='temps'
-        tempTableCheck='create table if not exists ' + tempTable + '(timestamp DATETIME, temp NUMERIC, occupiedIain text, occupiedElora text, manualOverride text, advancedOverride DATETIME);'
-        curs.execute(tempTableCheck)
-        tempconn.commit()
-    with sqlite3.connect(todaysStateDB) as stateconn:
-        curs=stateconn.cursor()
-        overrideTable='manualOverride'
-        overrideTableCheck='create table if not exists ' + overrideTable + '(timestamp DATETIME, temp NUMERIC, manualOverride text, advancedOverride NUMERIC);'
-        curs.execute(overrideTableCheck)
-        tempconn.commit()
+        with sqlite3.connect(todaysDB) as tempconn:
+            curs=tempconn.cursor()
+            tempTable='temps'
+            tempTableCheck='create table if not exists ' + tempTable + '(timestamp DATETIME, temp NUMERIC, occupiedIain text, occupiedElora text, manualOverride text, advancedOverride DATETIME, STATUS text, setTemp NUMERIC,schedule TEXT);'
+            curs.execute(tempTableCheck)
+            curs.execute("INSERT INTO temps values (?, ?, ?, ?, ?, ?, ?, ?, ?);",  (dateTimeLIST[4], temp, occupiedIain, occupiedElora, manualOverride, advancedOverride, STATUS, setTemp, schedule) )
+            tempconn.commit()
+        with sqlite3.connect(todaysStateDB) as stateconn:
+            curs=stateconn.cursor()
+            overrideTable='manualOverride'
+            overrideTableCheck='create table if not exists ' + overrideTable + '(timestamp DATETIME, temp NUMERIC, manualOverride text, advancedOverride NUMERIC);'
+            curs.execute(overrideTableCheck)
+            curs.execute("INSERT INTO manualOverride values (?, ?, ?, ?);", (dateTimeLIST[4], temp, manualOverride, advancedOverride))
+            tempconn.commit()
     
 def findDevices():
     global occupiedIain
@@ -116,6 +124,7 @@ def manOverride():
         time.strptime(row3, "%H:%M")
         if row3 == timeSmall or row3 < timeSmall:
             advancedOverride='OFF'
+            manualOverride='OFF'
             with sqlite3.connect(todaysDB) as stateconn:
                 curs=stateconn.cursor()
                 curs.execute("INSERT INTO manualOverride values (?, ?, ?, ?);", (dateTimeLIST[4], temp, manualOverride, advancedOverride))
@@ -137,8 +146,15 @@ def manOverride():
 
 def checkSchedule():
     today=now.strftime("%A")
-    global chSTATUS
+    global setTemp, chSTATUS, schedule
     chSTATUS='OFF'
+    schedule='OFF'
+    dayStart=str(daytime[0])
+    dayEnd=str(daytime[1])
+    if (str(now) < str(daytime[1])):
+        setTemp=temperatures[0]
+    else:
+        setTemp=temperatures[1]
     with sqlite3.connect(scheduleDB) as schedconn:
         curs=schedconn.cursor()
         query=curs.execute("SELECT * FROM " + today + " ORDER BY ROWID ASC LIMIT 10;")
@@ -149,28 +165,32 @@ def checkSchedule():
         for prog in result_list:
             progON=prog['ON']
             progOFF=prog['OFF']
-            if (progON < timeNow) and (progOFF > timeNow):
+            if (timeNow >= str(progON)) and (timeNow < str(progOFF)):
+                schedule=[]
+                schedule.append(progON)
+                schedule.append(progOFF)
+                schedule=str(schedule)
                 if (occupiedIain == 'YES') or (occupiedElora == 'YES'):
-                    chSTATUS='ON'
+                    if (str(temp) < str(setTemp)):
+                        chSTATUS='ON'
+                    else:
+                        chSATUS='OFF'
                 else:
-                    pass
+                    chSATUS='OFF'
             else:
-                pass
+                chSATUS='OFF'
+    setTemp=float(setTemp)
+    setTemp=math.ceil(setTemp * 100) / 100.0
     
 def logic():
     global STATUS
-    if (str(now) < daytime[0]) and (str(now) > daytime[1]):
-        setTemp=temperatures[1]
-    else:
-        setTemp=temperatures[1]
+    if (chSTATUS == 'OFF') and (manualOverride == 'ON'):
+        subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/on.sh"])
+        STATUS='ON'
     if (chSTATUS == 'ON') and (manualOverride == 'ON'):
         subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/off.sh"])
         STATUS='OFF'
     if (chSTATUS == 'ON') and (manualOverride == 'OFF'):
-         if (str(temp) < str(setTemp)):
-            subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/on.sh"])
-            STATUS='ON'
-    if (chSTATUS == 'OFF') and (manualOverride == 'ON'):
         subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/on.sh"])
         STATUS='ON'
     if (chSTATUS == 'OFF') and (manualOverride == 'OFF'):
@@ -180,7 +200,7 @@ def logic():
 def logData():
     with sqlite3.connect(todaysDB) as tempconn:
         curs=tempconn.cursor()
-        curs.execute("INSERT INTO temps values (?, ?, ?, ?, ?, ?, ?);",  (dateTimeLIST[4], temp, occupiedIain, occupiedElora, manualOverride, advancedOverride, STATUS) )
+        curs.execute("INSERT INTO temps values (?, ?, ?, ?, ?, ?, ?, ?, ?);",  (dateTimeLIST[4], temp, occupiedIain, occupiedElora, manualOverride, advancedOverride, STATUS, setTemp, schedule) )
         tempconn.commit()
 
 
