@@ -165,6 +165,13 @@ def checkSchedule():
         for prog in result_list:
             progON=prog['ON']
             progOFF=prog['OFF']
+            if ( timeNow == progON ) and (manualOverride == 'ON'):
+                manualOverride='OFF'
+                advancedOverride=''
+                with sqlite3.connect(todaysDB) as stateconn:
+                    curs=stateconn.cursor()
+                    curs.execute("INSERT INTO manualOverride values (?, ?, ?, ?);", (dateTimeLIST[4], temp, manualOverride, advancedOverride))
+                    tempconn.commit()
             if (timeNow >= str(progON)) and (timeNow < str(progOFF)):
                 schedule=[]
                 schedule.append(progON)
