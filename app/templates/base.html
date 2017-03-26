@@ -1,0 +1,39 @@
+<html>
+
+<head>
+<link rel="stylesheet" href="{{ styles[0] }}">
+<link rel="stylesheet" href="{{ styles[1] }}">
+<link href='http://fonts.googleapis.com/css?family=Oswald' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+<link rel="shortcut icon" href="{{ url_for('static',filename='favicon.ico') }}">
+<script src="{{ url_for('static',filename='Chart.min.js') }}"></script>
+<title>Heating is {{ dbData[6] }}</title>
+</head>
+<body>
+
+<div class="container">
+    <div class="sideBar">
+        <div class="box effect6">
+            <div class="title" align="center"><h1>Heating Control</h1></div>
+            <h3>{{ timeData[0] }} {{ timeData[1] }}</br>{{ timeData[2] }}</h3>
+            <h3>{{ dbData[1] }}&deg;C </br> Temp is set to {{ dbData[7] }}&deg;C </h3>
+            <h3>Iain is home = {{ dbData[2] }} </br> Elora is home = {{ dbData[3] }}</h3>
+            <h3>Advance = {{ dbData2[3] }} </br> Manual = {{ dbData2[2] }}</h3>
+            <h3>Schedule = {{ scheduleRUN }}</h3>
+            <div class="title" align="center"><h2>Heating = {{ dbData[6] }}</h2></div>
+            {% block buttons %}{% endblock %}
+        </div>
+    </div>
+</div>
+{% block content %}{% endblock %}
+</body>
+<script>
+ // this will reload page after every 5 secounds;
+ function autoRefresh()
+{
+	window.location = window.location.href;
+}
+
+ setInterval('autoRefresh()', 5000);
+</script>
+</html>

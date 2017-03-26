@@ -1,0 +1,3 @@
+#!/bin/bash
+
+screen -dm -S Heating sudo python3 /home/iainstott/GitRepo/Heating/run.py
