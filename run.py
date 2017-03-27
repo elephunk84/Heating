@@ -13,23 +13,24 @@ lib_path = os.path.abspath(os.path.join(workingdir, 'lib'))
 sys.path.append(lib_path)
 
 
-temperatures=['19.999', '21.999']
-daytime=['08:00:00', '17:00:00']
+temperatures=['17.999', '19.999', '21.999']
+daytime=['08:00:00', '17:00:00', '23:59:00']
 
-detectDevices=['192.168.0.10', '192.168.0.11', '192.168.0.25', '192.168.0.26']
+detectDevices=['192.168.0.10', '192.168.0.25', '192.168.0.26']
 
 dataTables=['temps', 'override', 'time']
 
 onCommand="ssh osmc@192.168.0.130 'sudo gpio write 8 0'"
 offCommand="ssh osmc@192.168.0.130 'sudo gpio write 8 1'"
 
+STATUS='OFF'
+chSTATUS='OFF'
 manualOverride='OFF'
 advancedOverride='OFF'
 occupiedIain='NO'
 occupiedElora='NO'
-STATUS=''
-setTemp=''
-schedule=''
+setTemp='17.999'
+schedule='OFF'
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(22, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -55,9 +56,7 @@ def dateTime():
     dateTimeLIST.append(now.strftime("%d"))
     dateTimeLIST.append(now.strftime("%B"))
     dateTimeLIST.append(now.strftime("%Y"))
-    
-    
-    
+   
 def getTemp():
     global temp
     devicelist = glob.glob('/sys/bus/w1/devices/28-*')
@@ -105,8 +104,6 @@ def checkforDB():
 def findDevices():
     global occupiedIain
     global occupiedElora
-    occupiedIain="NO"
-    occupiedElora="NO"
     for ip in detectDevices:
         response = os.system("ping -c 1 " + ip + " > /dev/null")
         if response == 0:
@@ -121,24 +118,20 @@ def manOverride():
         curs=stateconn.cursor()
         curs.execute("SELECT * FROM " + dataTables[1] + " ORDER BY ROWID DESC LIMIT 1")
         lastRow=curs.fetchone()
-    timeSmall=str(now.strftime("%H:%M"))
+        curs.close()
     advTime=lastRow[3]
     try:
         time.strptime(advTime, "%H:%M")
-        if (str(advTime) == timeSmall):
+        if (str(advTime) == dateTimeLIST[3]):
             advancedOverride='OFF'
             manualOverride='OFF'
             with sqlite3.connect(todaysDB) as stateconn:
                 curs=stateconn.cursor()
                 curs.execute("INSERT INTO " + dataTables[1] + " values (?, ?, ?, ?);", (dateTimeLIST[4], temp, manualOverride, advancedOverride))
-                tempconn.commit()
+                stateconn.commit()
         else:
-            advancedOverride=row3
+            advancedOverride=lastRow[3]
             manualOverride='ON'
-            with sqlite3.connect(todaysDB) as stateconn:
-                curs=stateconn.cursor()
-                curs.execute("INSERT INTO " + dataTables[1] + " values (?, ?, ?, ?);", (dateTimeLIST[4], temp, manualOverride, advancedOverride))
-                tempconn.commit()
     except:
         if lastRow[2] == 'OFF' or None or '':
                 manualOverride='OFF'
@@ -151,31 +144,29 @@ def manOverride():
 def checkSchedule():
     global setTemp, chSTATUS, schedule
     global manualOverride, advancedOverride
-    today=now.strftime("%A")
-    chSTATUS='OFF'
-    schedule='OFF'
     if ((dateTimeLIST[3] > daytime[0]) and (dateTimeLIST[3] < daytime[1])):
         setTemp=temperatures[0]
-    else:
+    elif ((dateTimeLIST[3] > daytime[1]) and (dateTimeLIST[3] < daytime[2])):
         setTemp=temperatures[1]
+    elif ((dateTimeLIST[3] < daytime[2]) and (dateTimeLIST[3] < daytime[1])):
+        setTemp=temperatures[2]
     with sqlite3.connect(scheduleDB) as schedconn:
         curs=schedconn.cursor()
-        query=curs.execute("SELECT * FROM " + today + " ORDER BY ROWID ASC LIMIT 10;")
+        query=curs.execute("SELECT * FROM " + dateTimeLIST[0] + " ORDER BY ROWID ASC LIMIT 10;")
         colname = [ d[0] for d in query.description ]
         result_list = [ dict(zip(colname, r)) for r in query.fetchall() ]
         curs.close()
-        timeNow=str(now.strftime("%H:%M"))
         for prog in result_list:
             progON=prog['ON']
             progOFF=prog['OFF']
-            if ( timeNow == progON ) and ( manualOverride == 'ON' ):
+            if ( dateTimeLIST[3] == progON ) and ( manualOverride == 'ON' ):
                 manualOverride='OFF'
                 advancedOverride='OFF'
                 with sqlite3.connect(todaysDB) as stateconn:
                     curs=stateconn.cursor()
                     curs.execute("INSERT INTO override values (?, ?, ?, ?);", (dateTimeLIST[4], temp, manualOverride, advancedOverride))
-                    tempconn.commit()
-            if (timeNow >= str(progON)) and (timeNow < str(progOFF)):
+                    stateconn.commit()
+            if (dateTimeLIST[3] >= str(progON)) and (dateTimeLIST[3] < str(progOFF)):
                 schedule=[]
                 schedule.append(progON)
                 schedule.append(progOFF)
@@ -208,11 +199,6 @@ def logic():
         STATUS='OFF'
     
 def logData():
-    try:
-        time.strptime(advTime, '%H:%M')
-        advancedOverride=advTime
-    except ValueError:
-        advancedOverride='OFF'
     with sqlite3.connect(todaysDB) as tempconn:
         curs=tempconn.cursor()
         curs.execute("INSERT INTO " + dataTables[0] + " values (?, ?, ?, ?, ?, ?, ?, ?, ?);",  (dateTimeLIST[2], temp, occupiedIain, occupiedElora, manualOverride, advancedOverride, STATUS, setTemp, schedule) )
