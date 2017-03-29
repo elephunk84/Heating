@@ -2,7 +2,7 @@
 {% block buttons %} <div class="buttonsCont">
                     <a href="advance" class="push_button green">1 Hour Advance</a>
                     <a href="manual" class="push_button red">Manual Override</a>
-                    <a href="winter" class="push_button blue">Winter Mode</a>
+                    <a href="winter" class="push_button yellow">Summer Mode</a>
                     <a href="#" class="push_button blue">Edit Schedule</a>
                     </div>
 {% endblock %}
@@ -13,7 +13,7 @@
                 <iframe id="forecast_embed" type="text/html" frameborder="0" height="245" width="100%" src="http://forecast.io/embed/#lat=53.3353&lon=-2.7307&units=uk&name=Runcorn England"> </iframe>
             </div>
         <!-- bar chart canvas element -->
-        <canvas id="chart" width="1000" height="400"></canvas>
+        <canvas id="chart" width="1050" height="400"></canvas>
         <script>
         // bar chart data
         var barData = {
@@ -68,5 +68,5 @@
 </script>    
         </div>
     </div>
-</div>
+    </div>
 {% endblock %}

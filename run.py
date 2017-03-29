@@ -13,9 +13,9 @@ lib_path = os.path.abspath(os.path.join(workingdir, 'lib'))
 sys.path.append(lib_path)
 
 
-temperatures=['17.999', '19.999', '21.999']
-daytime=['08:00:00', '17:00:00', '23:59:00']
-
+temperatures=['17.999', '20.999', '21.999']
+daytime=['08:00:00', '17:00:00', '20:00:00', '23:59:59']
+summerMONTHS=['June', 'July', 'August', 'September']
 detectDevices=['192.168.0.10', '192.168.0.25', '192.168.0.26']
 
 dataTables=['temps', 'override', 'time']
@@ -25,8 +25,10 @@ offCommand="ssh osmc@192.168.0.130 'sudo gpio write 8 1'"
 
 STATUS='OFF'
 chSTATUS='OFF'
+summerOverride='OFF'
 manualOverride='OFF'
 advancedOverride='OFF'
+manSumOverride='OFF'
 occupiedIain='NO'
 occupiedElora='NO'
 setTemp='17.999'
@@ -93,11 +95,11 @@ def checkforDB():
             tempTableCheck='create table if not exists ' + dataTables[0] + '(timestamp DATETIME, temp NUMERIC, occupiedIain text, occupiedElora text, manualOverride text, advancedOverride DATETIME, STATUS text, setTemp NUMERIC,schedule TEXT);'
             curs.execute(tempTableCheck)
             curs.execute("INSERT INTO " + dataTables[0] + " values (?, ?, ?, ?, ?, ?, ?, ?, ?);",  (dateTimeLIST[2], temp, occupiedIain, occupiedElora, manualOverride, advancedOverride, STATUS, setTemp, schedule) )
-            overrideTableCheck='create table if not exists ' + dataTables[1] + '(timestamp DATETIME, temp NUMERIC, manualOverride text, advancedOverride NUMERIC);'
+            overrideTableCheck='create table if not exists ' + dataTables[1] + '(timestamp DATETIME, temp NUMERIC, manualOverride text, advancedOverride text, summerOverride text, manSumOverride text);'
             curs.execute(overrideTableCheck)
-            curs.execute("INSERT INTO " + dataTables[1] + " values (?, ?, ?, ?);", (dateTimeLIST[4], temp, manualOverride, advancedOverride))
-            overrideTableCheck='create table if not exists ' + dataTables[2] + '(day DATETIME, date DATETIME, timeBIG DATETIME, timeSMALL DATETIME, yesterday DATETIME);'
-            curs.execute(overrideTableCheck)
+            curs.execute("INSERT INTO " + dataTables[1] + " values (?, ?, ?, ?, ?, ?);", (dateTimeLIST[2], temp, manualOverride, advancedOverride, summerOverride, manSumOverride))
+            tempTableCheck='create table if not exists ' + dataTables[2] + '(day DATETIME, date DATETIME, timeBIG DATETIME, timeSMALL DATETIME, yesterday DATETIME);'
+            curs.execute(tempTableCheck)
             curs.execute("INSERT INTO " + dataTables[2] + " values (?, ?, ?, ?, ?);", (dateTimeLIST[0], dateTimeLIST[1], dateTimeLIST[2], dateTimeLIST[3], dateTimeLIST[4]))
             tempconn.commit()
     
@@ -142,13 +144,20 @@ def manOverride():
     return manualOverride, advancedOverride
 
 def checkSchedule():
-    global setTemp, chSTATUS, schedule
-    global manualOverride, advancedOverride
+    global dateTimeLIST, summerMONTHS, setTemp, chSTATUS, schedule, manualOverride, advancedOverride, summerOverride, manSumOverride
+    if dateTimeLIST[6] in summerMONTHS:
+        if manSumOverride == 'OFF':
+            summerOverride='ON'
+        elif manSumOverride == 'ON':
+            summerOverride='OFF'
+    if summerOverride == 'ON':
+        chSTATUS='OFF'
+        return chSTATUS
     if ((dateTimeLIST[3] > daytime[0]) and (dateTimeLIST[3] < daytime[1])):
         setTemp=temperatures[0]
     elif ((dateTimeLIST[3] > daytime[1]) and (dateTimeLIST[3] < daytime[2])):
         setTemp=temperatures[1]
-    elif ((dateTimeLIST[3] < daytime[2]) and (dateTimeLIST[3] < daytime[1])):
+    elif ((dateTimeLIST[3] > daytime[2]) and (dateTimeLIST[3] < daytime[3])):
         setTemp=temperatures[2]
     with sqlite3.connect(scheduleDB) as schedconn:
         curs=schedconn.cursor()
@@ -157,48 +166,58 @@ def checkSchedule():
         result_list = [ dict(zip(colname, r)) for r in query.fetchall() ]
         curs.close()
         for prog in result_list:
-            progON=prog['ON']
-            progOFF=prog['OFF']
-            if ( dateTimeLIST[3] == progON ) and ( manualOverride == 'ON' ):
-                manualOverride='OFF'
-                advancedOverride='OFF'
-                with sqlite3.connect(todaysDB) as stateconn:
-                    curs=stateconn.cursor()
-                    curs.execute("INSERT INTO override values (?, ?, ?, ?);", (dateTimeLIST[4], temp, manualOverride, advancedOverride))
-                    stateconn.commit()
-            if (dateTimeLIST[3] >= str(progON)) and (dateTimeLIST[3] < str(progOFF)):
-                schedule=[]
-                schedule.append(progON)
-                schedule.append(progOFF)
-                schedule=str(schedule)
-                if (occupiedIain == 'YES') or (occupiedElora == 'YES'):
-                    if (str(temp) < str(setTemp)):
-                        chSTATUS='ON'
+            progON=str(prog['ON'])
+            progOFF=str(prog['OFF'])    
+            if dateTimeLIST[3] >= progON:
+                if dateTimeLIST[3] < progOFF:
+                    schedule=[]
+                    schedule.append(progON)
+                    schedule.append(progOFF)
+                    schedule=str(schedule)
+                    if (occupiedIain == 'YES'):
+                        if str(temp) < str(setTemp):
+                            chSTATUS='ON'
+                        else:
+                            chSATUS='OFF'
+                    if (occupiedElora == 'YES'):
+                        if str(temp) < str(setTemp):
+                            chSTATUS='ON'
+                        else:
+                            chSATUS='OFF'
                     else:
                         chSATUS='OFF'
-                else:
-                    chSATUS='OFF'
-            else:
-                chSATUS='OFF'
+            if dateTimeLIST[3] == str(progOFF):
+                schedule=str('')
+                manualOverride='OFF'
+                advancedOverride='OFF'
+                chSTATUS='OFF'
+                with sqlite3.connect(todaysDB) as stateconn:
+                    curs=stateconn.cursor()
+                    curs.execute("INSERT INTO override values (?, ?, ?, ?, ?, ?);", (dateTimeLIST[4], temp, manualOverride, advancedOverride, summerOverride, manSumOverride))
+                    stateconn.commit()
     setTemp=float(setTemp)
     setTemp=math.ceil(setTemp * 100) / 100.0
-    
+                    
+                
 def logic():
-    global STATUS
-    if (chSTATUS == 'OFF') and (manualOverride == 'ON'):
-        subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/on.sh"])
-        STATUS='ON'
-    if (chSTATUS == 'ON') and (manualOverride == 'ON'):
-        subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/off.sh"])
-        STATUS='OFF'
-    if (chSTATUS == 'ON') and (manualOverride == 'OFF'):
-        subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/on.sh"])
-        STATUS='ON'
-    if (chSTATUS == 'OFF') and (manualOverride == 'OFF'):
-        subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/off.sh"])
-        STATUS='OFF'
+    global chSTATUS, STATUS
+    if (chSTATUS == 'OFF'):
+        if (manualOverride == 'ON'):
+            subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/on.sh"])
+            STATUS='ON'
+        if (manualOverride == 'OFF'):
+            subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/off.sh"])
+            STATUS='OFF'
+    if (chSTATUS == 'ON'): 
+        if (manualOverride == 'ON'):
+            subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/off.sh"])
+            STATUS='OFF'
+        if (manualOverride == 'OFF'):
+            subprocess.call(["ssh", "osmc@192.168.0.130", "sh /home/osmc/on.sh"])
+            STATUS='ON'
     
 def logData():
+    global setTemp
     with sqlite3.connect(todaysDB) as tempconn:
         curs=tempconn.cursor()
         curs.execute("INSERT INTO " + dataTables[0] + " values (?, ?, ?, ?, ?, ?, ?, ?, ?);",  (dateTimeLIST[2], temp, occupiedIain, occupiedElora, manualOverride, advancedOverride, STATUS, setTemp, schedule) )

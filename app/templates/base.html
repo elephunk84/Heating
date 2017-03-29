@@ -15,11 +15,21 @@
     <div class="sideBar">
         <div class="box effect6">
             <div class="title" align="center"><h1>Heating Control</h1></div>
-            <h3>{{ timeData[0] }} {{ timeData[1] }}</br>{{ timeData[2] }}</h3>
-            <h3>{{ dbData[1] }}&deg;C </br> Temp is set to {{ dbData[7] }}&deg;C </h3>
-            <h3>Is Iain Home? {{ dbData[2] }}... </br> Is Elora Home? {{ dbData[3] }}...</h3>
-            <h3>1 Hour Advance = {{ dbData2[3] }} </br> Manual Override = {{ dbData2[2] }}</h3>
-            <h3>Schedule = {{ scheduleRUN }}</h3>
+            <h3>{{ data[5] }} {{ timeData[1] }} {{ timeData[2] }} </br>
+            {{ dbData[1] }}&deg;C </br> 
+            Temp is set to {{ dbData[7] }}&deg;C </br></br>
+            Is Iain Home? {{ dbData[2] }}... </br> 
+            Is Elora Home? {{ dbData[3] }}...</br></br>
+            1 Hour Advance = {{ dbData2[3] }} </br> 
+            Manual Override = {{ dbData2[2] }}
+            <p>
+            {% if summerTEXT == "" %}
+                  </br>
+            {% else %}
+                {{ summerTEXT }}
+            {% endif %}
+            </p>
+            Schedule = {{ scheduleRUN }}</h3>
             <div class="title" align="center"><h2>Heating is {{ dbData[6] }}</h2></div>
             {% block buttons %}{% endblock %}
         </div>
